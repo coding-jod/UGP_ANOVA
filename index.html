@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Two-Way ANOVA</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin-bottom: 20px;
+        }
+        th, td {
+            border: 1px solid #ccc;
+            padding: 10px;
+            text-align: center;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #28a745;
+            color: #fff;
+            border: none;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        textarea {
+            width: 100%;
+            height: 50px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Two-Way ANOVA</h1>
+    <table id="anovaTable">
+        <thead>
+            <tr>
+                <th>Factor A</th>
+                <th>Factor B</th>
+                <th>Values (comma-separated)</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><input type="number" placeholder="Level A" /></td>
+                <td><input type="number" placeholder="Level B" /></td>
+                <td>
+                    <textarea placeholder="Enter values separated by commas"></textarea>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+    <button onclick="addRow()">Add Row</button>
+    <button onclick="performANOVA()">Calculate ANOVA</button>
+
+    <h2>Results</h2>
+    <div id="results"></div>
+
+    <script>
+        function addRow() {
+            const table = document
+                .getElementById("anovaTable")
+                .getElementsByTagName("tbody")[0];
+            const newRow = table.insertRow();
+            newRow.innerHTML = `
+                <td><input type="number" placeholder="Level A"></td>
+                <td><input type="number" placeholder="Level B"></td>
+                <td><textarea placeholder="Enter values separated by commas"></textarea></td>
+            `;
+        }
+
+        function calculateMean(data) {
+            let sum = 0.0;
+            for (let i = 0; i < data.length; i++) {
+                sum += data[i];
+            }
+            return sum / data.length;
+        }
+
+        function calculateSS(data, mean) {
+            let sum = 0.0;
+            for (let i = 0; i < data.length; i++) {
+                sum += data[i];
+            }
+            return sum;
+        }
+
+        function performANOVA() {
+            const table = document
+                .getElementById("anovaTable")
+                .getElementsByTagName("tbody")[0];
+            const rows = table.getElementsByTagName("tr");
+
+            const data = [];
+            let levelsA = 0;
+            let levelsB = 0;
+
+            for (let i = 0; i < rows.length; i++) {
+                const cells = rows[i].getElementsByTagName("td");
+                const factorA = parseInt(
+                    cells[0].getElementsByTagName("input")[0].value
+                );
+                const factorB = parseInt(
+                    cells[1].getElementsByTagName("input")[0].value
+                );
+                const values = cells[2]
+                    .getElementsByTagName("textarea")[0]
+                    .value.split(",")
+                    .map(Number);
+
+                if (!data[factorA]) data[factorA] = [];
+                if (!data[factorA][factorB]) data[factorA][factorB] = [];
+
+                data[factorA][factorB] = data[factorA][factorB].concat(values);
+
+                levelsA = Math.max(levelsA, factorA + 1);
+                levelsB = Math.max(levelsB, factorB + 1);
+            }
+            // console.log(JSON.stringify(data, null, 2));
+
+
+            if (levelsA === 0 || levelsB === 0) {
+                alert("Please fill in all the required fields.");
+                return;
+            }
+
+            const totalObservations = data.reduce(
+                (acc, row) =>
+                    acc +
+                    (row
+                        ? row.reduce((acc2, col) => acc2 + (col ? col.length : 0), 0)
+                        : 0),
+                0
+            );
+
+            if (totalObservations === 0) {
+                alert("No valid data provided.");
+                return;
+            }
+
+            // Calculate grand mean
+            let grandMean = 0.0;
+            for (let i = 0; i < levelsA; i++) {
+                for (let j = 0; j < levelsB; j++) {
+                    if (data[i] && data[i][j]) {
+                        for (let k = 0; k < data[i][j].length; k++) {
+                            grandMean += data[i][j][k];
+                        }
+                    }
+                }
+            }
+            grandMean /= totalObservations;
+            console.log(grandMean);
+
+            // Calculate SS for factor A
+            const meanA = new Array(levelsA);
+            const SSfactorA = new Array(levelsA).fill(0);
+            for (let i = 0; i < levelsA; i++) {
+                let observations = [];
+                for (let j = 0; j < levelsB; j++) {
+                    if (data[i] && data[i][j]) {
+                        observations = observations.concat(data[i][j]);
+                    }
+                }
+
+                meanA[i] = observations.length ? calculateMean(observations) : 0;
+                // console.log(meanA[i]);
+                // console.log(levelsB);
+                // console.log(Math.pow(meanA[i] - grandMean, 2));
+                // console.log(observations.length);
+                SSfactorA[i] = observations.length
+                    ? observations.length * Math.pow(meanA[i] - grandMean, 2)
+                    : 0;
+            // for( let i=0; i<observations.length ; i++) console.log(observations[i]);
+            console.log(SSfactorA[i]);
+                
+            }
+            const MSfactorA = calculateSS(SSfactorA, grandMean)/(levelsA-1);
+            console.log(MSfactorA);
+
+            // Calculate SS for factor B
+            const meanB = new Array(levelsB);
+            const SSfactorB = new Array(levelsB).fill(0);
+            for (let j = 0; j < levelsB; j++) {
+                let observations = [];
+                for (let i = 0; i < levelsA; i++) {
+                    if (data[i] && data[i][j]) {
+                        observations = observations.concat(data[i][j]);
+                    }
+                }
+
+                meanB[j] = observations.length ? calculateMean(observations) : 0;
+                SSfactorB[j] = observations.length
+                    ? observations.length * Math.pow(meanB[j] - grandMean, 2)
+                    : 0;
+            }
+            const MSfactorB = calculateSS(SSfactorB, grandMean) / (levelsB - 1);
+
+            // Calculate SS for interaction (Factor AB)
+            const interactionSS = new Array(levelsA)
+                .fill(0)
+                .map(() => new Array(levelsB).fill(0));
+            let SSinteraction = 0.0;
+            for (let i = 0; i < levelsA; i++) {
+                for (let j = 0; j < levelsB; j++) {
+                    if (data[i] && data[i][j]) {
+                        const meanAB = calculateMean(data[i][j]);
+                        interactionSS[i][j] =
+                            data[i][j].length *
+                            Math.pow(meanAB - meanA[i] - meanB[j] + grandMean, 2);
+                        SSinteraction += interactionSS[i][j];
+                    }
+                }
+            }
+            const MSinteraction = SSinteraction / ((levelsA - 1) * (levelsB - 1));
+
+            // Calculate SS for Error
+            let SSerror = 0.0;
+            for (let i = 0; i < levelsA; i++) {
+                for (let j = 0; j < levelsB; j++) {
+                    if (data[i] && data[i][j]) {
+                        const meanAB = calculateMean(data[i][j]);
+                        for (let k = 0; k < data[i][j].length; k++) {
+                            SSerror += Math.pow(data[i][j][k] - meanAB, 2);
+                        }
+                    }
+                }
+            }
+            const MSerror = SSerror / (totalObservations - levelsA * levelsB);
+
+            // Calculate F-Statistics
+            const FfactorA = MSfactorA / MSerror;
+            const FfactorB = MSfactorB / MSerror;
+            const Finteraction = MSinteraction / MSerror;
+
+            const results = `
+                <p>Mean Square Factor A (MSA): ${MSfactorA.toFixed(4)}</p>
+                <p>Mean Square Factor B (MSB): ${MSfactorB.toFixed(4)}</p>
+                <p>Mean Square Interaction (MSAB): ${MSinteraction.toFixed(4)}</p>
+                <p>Mean Square Error (MSE): ${MSerror.toFixed(4)}</p>
+                <p>F-Statistic for Factor A: ${FfactorA.toFixed(4)}</p>
+                <p>F-Statistic for Factor B: ${FfactorB.toFixed(4)}</p>
+                <p>F-Statistic for Interaction: ${Finteraction.toFixed(4)}</p>
+            `;
+            document.getElementById("results").innerHTML = results;
+        }
+    </script>
+</body>
+</html>
